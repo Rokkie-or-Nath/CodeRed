@@ -41,9 +41,7 @@ export default function HeroSection() {
 
         {/* Title */}
         <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <span className="gradient-text">Emergency</span>
-          <br />
-          <span className="text-white">Locator</span>
+          <span className="text-white">Code</span><span className="text-red-400">Red</span>
         </h1>
 
         {/* Subtitle */}

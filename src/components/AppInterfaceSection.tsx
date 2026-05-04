@@ -330,7 +330,7 @@ export default function AppInterfaceSection() {
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-dark-900/50 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-semibold">Emergency Locator</span>
+                <span className="text-sm font-semibold">Code<span className="text-red-400">Red</span></span>
               </div>
               <div className="flex items-center gap-4">
                 {['Home', 'Map', 'Profile'].map((item, i) => (

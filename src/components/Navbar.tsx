@@ -28,7 +28,7 @@ export default function Navbar({ activeSection }: { activeSection: string }) {
               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-dark-900 animate-pulse" />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              Emergency<span className="text-red-500">Locator</span>
+              Code<span className="text-red-500">Red</span>
             </span>
           </a>
 

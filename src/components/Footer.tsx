@@ -12,7 +12,7 @@ export default function Footer() {
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <span className="text-lg font-bold">
-                Emergency<span className="text-red-500">Locator</span>
+                Code<span className="text-red-500">Red</span>
               </span>
             </div>
             <p className="text-sm text-gray-500 leading-relaxed">
