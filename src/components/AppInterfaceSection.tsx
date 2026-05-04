@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapPin, Phone, Star, Clock, Navigation, AlertTriangle, Layers, Crosshair, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { MapPin, Phone, Star, Clock, Navigation, AlertTriangle, Layers, Crosshair, X, ChevronUp, ChevronDown, Search, User, GitFork, ExternalLink, Code2, Globe, Maximize, Minimize } from 'lucide-react';
 
 const GEOAPIFY_KEY = import.meta.env.VITE_GEOAPIFY_KEY;
 const ORS_KEY = import.meta.env.VITE_ORS_KEY;
@@ -32,6 +32,12 @@ export default function AppInterfaceSection() {
   const [showSatellite, setShowSatellite] = useState(false);
   const [activeRoute, setActiveRoute] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showFsPanel, setShowFsPanel] = useState(true);
+  const fullscreenMapContainer = useRef<HTMLDivElement>(null);
+  const fullscreenMap = useRef<maplibregl.Map | null>(null);
 
   const clearRoute = useCallback(() => {
     if (!map.current) return;
@@ -111,7 +117,6 @@ export default function AppInterfaceSection() {
       zoom: 2,
       pitch: 45,
       bearing: 0,
-      antialias: true,
     });
 
     map.current.on('load', () => {
@@ -131,7 +136,11 @@ export default function AppInterfaceSection() {
       });
     });
 
-    return () => { map.current?.remove(); map.current = null; };
+    return () => { 
+      if (hospitalBuildingInterval.current) clearInterval(hospitalBuildingInterval.current);
+      map.current?.remove(); 
+      map.current = null; 
+    };
   }, []);
 
   // Get location + hospitals
@@ -174,30 +183,49 @@ export default function AppInterfaceSection() {
         );
         const data = await res.json();
 
-        const results: Hospital[] = data.features.map((f: any) => {
-          const p = f.properties;
-          const dist = Math.sqrt((p.lat - lat) ** 2 + (p.lon - lon) ** 2) * 111;
-          return {
-            name: p.name || 'Unknown Hospital',
-            distance: `${dist.toFixed(1)} km`,
-            distanceRaw: dist,
-            phone: p.contact?.phone || 'N/A',
-            open: p.opening_hours ? true : null,
-            lat: p.lat,
-            lon: p.lon,
-          };
-        });
+        const results: Hospital[] = data.features
+          .map((f: any) => {
+            const p = f.properties;
+            const dist = Math.sqrt((p.lat - lat) ** 2 + (p.lon - lon) ** 2) * 111;
+            return {
+              name: p.name || 'Unknown Hospital',
+              distance: `${dist.toFixed(1)} km`,
+              distanceRaw: dist,
+              phone: p.contact?.phone || 'N/A',
+              open: p.opening_hours ? true : null,
+              lat: p.lat,
+              lon: p.lon,
+            };
+          })
+          .sort((a: Hospital, b: Hospital) => a.distanceRaw - b.distanceRaw);
 
         setHospitals(results);
 
+        // Light up actual hospital buildings via Overpass
+        if (map.current?.isStyleLoaded()) {
+          addHospitalBuildingGlow(map.current, results);
+        } else {
+          map.current?.once('load', () => addHospitalBuildingGlow(map.current!, results));
+        }
+
+        // Add traffic layer
+        if (map.current?.isStyleLoaded()) {
+          addTrafficLayer(map.current);
+        } else {
+          map.current?.once('load', () => addTrafficLayer(map.current!));
+        }
+
         hospitalMarkers.current.forEach(m => m.remove());
-        hospitalMarkers.current = results.map((h) => {
+        hospitalMarkers.current = results.map((h, i) => {
           const hEl = document.createElement('div');
           hEl.style.cssText = 'width:32px;height:32px;border-radius:8px;background:#dc2626;border:1px solid rgba(248,113,113,0.5);box-shadow:0 0 12px rgba(220,38,38,0.6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:white;font-family:sans-serif;cursor:pointer;';
-          hEl.textContent = 'H';
+          hEl.textContent = `${i + 1}`;
+          hEl.addEventListener('click', () => {
+            setSelectedHospital(prev => prev === i ? null : i);
+            setSheetOpen(true);
+          });
           return new maplibregl.Marker({ element: hEl, anchor: 'bottom' })
             .setLngLat([h.lon, h.lat])
-            .setPopup(new maplibregl.Popup({ offset: 20 }).setHTML(`<strong>${h.name}</strong><br/>${h.distance}`))
             .addTo(map.current!);
         });
 
@@ -208,7 +236,199 @@ export default function AppInterfaceSection() {
     );
   }, []);
 
-  // Satellite toggle
+  const hospitalBuildingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const addHospitalBuildingGlow = useCallback(async (mapInstance: maplibregl.Map, hospitalList: Hospital[]) => {
+    // Clear previous
+    ['hospital-buildings-glow', 'hospital-buildings'].forEach(id => {
+      if (mapInstance.getLayer(id)) mapInstance.removeLayer(id);
+    });
+    if (mapInstance.getSource('hospital-buildings')) mapInstance.removeSource('hospital-buildings');
+    if (hospitalBuildingInterval.current) clearInterval(hospitalBuildingInterval.current);
+
+    // Build Overpass query to fetch building footprints near each hospital
+    const unionParts = hospitalList.slice(0, 20).map(
+      h => `node(around:80,${h.lat},${h.lon})[amenity=hospital];way(around:80,${h.lat},${h.lon})[amenity=hospital];way(around:80,${h.lat},${h.lon})[building][name];`
+    ).join('');
+
+    const query = `[out:json][timeout:25];(${unionParts});out body;>;out skel qt;`;
+
+    try {
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query,
+      });
+      const osm = await res.json();
+
+      // Build a node lookup
+      const nodeMap: Record<number, [number, number]> = {};
+      osm.elements.forEach((el: any) => {
+        if (el.type === 'node') nodeMap[el.id] = [el.lon, el.lat];
+      });
+
+      // Convert OSM ways to GeoJSON polygons
+      const features: GeoJSON.Feature[] = [];
+      osm.elements.forEach((el: any) => {
+        if (el.type === 'way' && el.nodes) {
+          const coords = el.nodes.map((nid: number) => nodeMap[nid]).filter(Boolean);
+          if (coords.length >= 3) {
+            // Close the ring
+            if (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1]) {
+              coords.push(coords[0]);
+            }
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Polygon', coordinates: [coords] },
+              properties: { name: el.tags?.name || 'Hospital' },
+            });
+          }
+        }
+      });
+
+      if (features.length === 0) return;
+
+      mapInstance.addSource('hospital-buildings', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features },
+      });
+
+      // Outer glow layer (wider, semi-transparent)
+      mapInstance.addLayer({
+        id: 'hospital-buildings-glow',
+        type: 'fill-extrusion',
+        source: 'hospital-buildings',
+        paint: {
+          'fill-extrusion-color': '#ff2020',
+          'fill-extrusion-height': 60,
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.25,
+        },
+      });
+
+      // Core building layer
+      mapInstance.addLayer({
+        id: 'hospital-buildings',
+        type: 'fill-extrusion',
+        source: 'hospital-buildings',
+        paint: {
+          'fill-extrusion-color': '#ef4444',
+          'fill-extrusion-height': 40,
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.9,
+        },
+      });
+
+      // Animate pulsing glow by oscillating opacity
+      let opacityUp = false;
+      let opacity = 0.25;
+      hospitalBuildingInterval.current = setInterval(() => {
+        if (!mapInstance.getLayer('hospital-buildings-glow')) {
+          clearInterval(hospitalBuildingInterval.current!);
+          return;
+        }
+        opacity = opacityUp ? opacity + 0.012 : opacity - 0.012;
+        if (opacity >= 0.55) opacityUp = false;
+        if (opacity <= 0.15) opacityUp = true;
+        mapInstance.setPaintProperty('hospital-buildings-glow', 'fill-extrusion-opacity', opacity);
+        mapInstance.setPaintProperty('hospital-buildings-glow', 'fill-extrusion-height', 55 + (opacity - 0.15) * 40);
+      }, 40);
+
+    } catch { /* silently fail if Overpass is unavailable */ }
+  }, []);
+
+  const addTrafficLayer = useCallback((mapInstance: maplibregl.Map) => {
+    if (mapInstance.getLayer('traffic-stripes')) mapInstance.removeLayer('traffic-stripes');
+    if (mapInstance.getSource('traffic-roads')) mapInstance.removeSource('traffic-roads');
+
+    // Use Geoapify road tiles as a raster source for traffic-like overlay
+    mapInstance.addSource('traffic-roads', {
+      type: 'raster',
+      tiles: [
+        `https://maps.geoapify.com/v1/tile/dark-matter/{z}/{x}/{y}.png?apiKey=${GEOAPIFY_KEY}`,
+      ],
+      tileSize: 256,
+    });
+
+    // Striped black & gray traffic overlay using a repeating SVG pattern via image
+    const stripeCanvas = document.createElement('canvas');
+    stripeCanvas.width = 10;
+    stripeCanvas.height = 10;
+    const ctx = stripeCanvas.getContext('2d')!;
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.fillRect(0, 0, 10, 10);
+    ctx.strokeStyle = 'rgba(80,80,80,0.55)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 10);
+    ctx.lineTo(10, 0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,30,30,0.45)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-2, 8);
+    ctx.lineTo(8, -2);
+    ctx.stroke();
+
+    if (!mapInstance.hasImage('traffic-stripe')) {
+      mapInstance.addImage('traffic-stripe', { width: 10, height: 10,
+        data: ctx.getImageData(0, 0, 10, 10).data as unknown as Uint8Array });
+    }
+
+    // Add road network source from Geoapify vector tiles
+    if (!mapInstance.getSource('openmaptiles')) {
+      // Overlay stripe pattern on existing road layers via a fill layer on a GeoJSON bbox
+      // Instead, we add a line layer on the map's road source if available
+    }
+
+    // Add animated stripe layer over roads using the map style's road source
+    const style = mapInstance.getStyle();
+    const roadSource = style?.sources && Object.keys(style.sources).find(
+      k => k.includes('geoapify') || k.includes('openmaptiles') || k.includes('composite') || k.includes('maptiler')
+    );
+
+    if (roadSource) {
+      mapInstance.addLayer({
+        id: 'traffic-stripes',
+        type: 'line',
+        source: roadSource,
+        'source-layer': 'transportation',
+        filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary', 'tertiary', 'trunk', 'motorway']]],
+        paint: {
+          'line-color': [
+            'step', ['zoom'],
+            'rgba(60,60,60,0)',
+            10, 'rgba(50,50,50,0.6)',
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 5, 18, 9],
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.7,
+        },
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+      }, 'jurisdiction-glow');
+
+      mapInstance.addLayer({
+        id: 'traffic-stripes-light',
+        type: 'line',
+        source: roadSource,
+        'source-layer': 'transportation',
+        filter: ['in', ['get', 'class'], ['literal', ['primary', 'secondary', 'tertiary', 'trunk', 'motorway']]],
+        paint: {
+          'line-color': [
+            'step', ['zoom'],
+            'rgba(120,120,120,0)',
+            10, 'rgba(140,140,140,0.35)',
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 2.5, 18, 4],
+          'line-dasharray': [2, 2],
+          'line-offset': 2,
+          'line-opacity': 0.6,
+        },
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+      }, 'jurisdiction-glow');
+    }
+  }, []);
+
+  // Satellite toggle — re-add custom layers after style reload
   useEffect(() => {
     if (!map.current) return;
     map.current.setStyle(
@@ -216,7 +436,11 @@ export default function AppInterfaceSection() {
         ? `https://maps.geoapify.com/v1/styles/satellite/style.json?apiKey=${GEOAPIFY_KEY}`
         : `https://maps.geoapify.com/v1/styles/dark-matter/style.json?apiKey=${GEOAPIFY_KEY}`
     );
-  }, [showSatellite]);
+    map.current.once('styledata', () => {
+      if (hospitals.length > 0) addHospitalBuildingGlow(map.current!, hospitals);
+      addTrafficLayer(map.current!);
+    });
+  }, [showSatellite, hospitals, addHospitalBuildingGlow, addTrafficLayer]);
 
   const handleEmergency = useCallback(() => {
     if (!location || hospitals.length === 0) return;
@@ -233,22 +457,98 @@ export default function AppInterfaceSection() {
     return () => { delete (window as any).__pulsePointEmergency; };
   }, [handleEmergency]);
 
+  // Fullscreen map init
+  useEffect(() => {
+    if (!fullscreen || !fullscreenMapContainer.current) return;
+    if (fullscreenMap.current) return;
+
+    const center = map.current?.getCenter();
+    const zoom = map.current?.getZoom() ?? 14;
+    const pitch = map.current?.getPitch() ?? 45;
+    const style = showSatellite
+      ? `https://maps.geoapify.com/v1/styles/satellite/style.json?apiKey=${GEOAPIFY_KEY}`
+      : `https://maps.geoapify.com/v1/styles/dark-matter/style.json?apiKey=${GEOAPIFY_KEY}`;
+
+    fullscreenMap.current = new maplibregl.Map({
+      container: fullscreenMapContainer.current,
+      style,
+      center: center ?? [0, 0],
+      zoom,
+      pitch,
+      bearing: 0,
+    });
+
+    // Re-add hospital markers
+    fullscreenMap.current.on('load', () => {
+      if (hospitals.length > 0) addHospitalBuildingGlow(fullscreenMap.current!, hospitals);
+      addTrafficLayer(fullscreenMap.current!);
+      hospitals.forEach((h, i) => {
+        const hEl = document.createElement('div');
+        hEl.style.cssText = 'width:32px;height:32px;border-radius:8px;background:#dc2626;border:1px solid rgba(248,113,113,0.5);box-shadow:0 0 12px rgba(220,38,38,0.6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:white;font-family:sans-serif;cursor:pointer;';
+        hEl.textContent = `${i + 1}`;
+        hEl.addEventListener('click', () => {
+          setSelectedHospital(prev => prev === i ? null : i);
+          setShowFsPanel(true);
+        });
+        new maplibregl.Marker({ element: hEl, anchor: 'bottom' })
+          .setLngLat([h.lon, h.lat])
+          .addTo(fullscreenMap.current!);
+      });
+      if (location) {
+        const el = document.createElement('div');
+        el.style.cssText = 'width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 12px rgba(59,130,246,0.9);';
+        new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([location.lon, location.lat])
+          .addTo(fullscreenMap.current!);
+      }
+    });
+
+    return () => {};
+  }, [fullscreen]);
+
+  // Cleanup fullscreen map on close
+  useEffect(() => {
+    if (!fullscreen && fullscreenMap.current) {
+      fullscreenMap.current.remove();
+      fullscreenMap.current = null;
+    }
+  }, [fullscreen]);
+
+  const filteredHospitals = hospitals.filter(h =>
+    h.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const hospitalItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (selectedHospital === null) return;
+    hospitalItemRefs.current[selectedHospital]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedHospital]);
+
   const HospitalList = () => (
     <div className="space-y-3">
       {loading && <p className="text-xs text-gray-500">Searching...</p>}
       {error && <p className="text-xs text-red-400">{error}</p>}
-      {hospitals.map((hospital, index) => (
+      {filteredHospitals.map((hospital, index) => {
+        const realIndex = hospitals.indexOf(hospital);
+        return (
         <div
           key={index}
-          onClick={() => setSelectedHospital(selectedHospital === index ? null : index)}
+          ref={el => { hospitalItemRefs.current[realIndex] = el; }}
+          onClick={() => setSelectedHospital(selectedHospital === realIndex ? null : realIndex)}
           className={`p-3 rounded-xl border cursor-pointer transition-all duration-300 ${
-            selectedHospital === index
+            selectedHospital === realIndex
               ? 'bg-red-500/10 border-red-500/30'
               : 'bg-dark-800/50 border-white/5 hover:border-white/10'
           }`}
         >
           <div className="flex items-start justify-between mb-2">
-            <h4 className="text-xs font-semibold leading-tight pr-2">{hospital.name}</h4>
+            <div className="flex items-center gap-2 pr-2">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600/80 text-white text-[9px] font-bold flex items-center justify-center">
+                {hospitals.indexOf(hospital) + 1}
+              </span>
+              <h4 className="text-xs font-semibold leading-tight">{hospital.name}</h4>
+            </div>
             {hospital.open !== null && <Star className="w-3 h-3 text-yellow-400 fill-current flex-shrink-0" />}
           </div>
           <div className="flex items-center gap-3 text-[10px] text-gray-500">
@@ -257,17 +557,17 @@ export default function AppInterfaceSection() {
               <span className="flex items-center gap-1 text-green-400"><Clock className="w-2.5 h-2.5" />Open</span>
             )}
           </div>
-          {selectedHospital === index && (
+          {selectedHospital === realIndex && (
             <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
               <button
-                onClick={(e) => { e.stopPropagation(); location && navigateTo(hospital, index, location); }}
+                onClick={(e) => { e.stopPropagation(); location && navigateTo(hospital, realIndex, location); }}
                 disabled={routeLoading}
                 className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-[11px] font-semibold transition-colors"
               >
                 <Navigation className="w-3 h-3" />
-                {routeLoading && activeRoute === index ? 'Routing...' : 'Navigate'}
+                {routeLoading && activeRoute === realIndex ? 'Routing...' : 'Navigate'}
               </button>
-              {activeRoute === index && (
+              {activeRoute === realIndex && (
                 <button
                   onClick={(e) => { e.stopPropagation(); clearRoute(); }}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-white/5 text-[11px] font-semibold transition-colors"
@@ -287,7 +587,8 @@ export default function AppInterfaceSection() {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -308,7 +609,7 @@ export default function AppInterfaceSection() {
         </div>
 
         {/* App Mockup */}
-        <div className="relative max-w-5xl mx-auto">
+        <div className="relative max-w-7xl mx-auto">
           {/* Browser chrome */}
           <div className="bg-dark-700 rounded-t-2xl border border-white/10 border-b-0 px-4 py-3 flex items-center gap-3">
             <div className="flex gap-1.5">
@@ -333,34 +634,168 @@ export default function AppInterfaceSection() {
                 <span className="text-sm font-semibold">Code<span className="text-red-400">Red</span></span>
               </div>
               <div className="flex items-center gap-4">
-                {['Home', 'Map', 'Profile'].map((item, i) => (
+                {['Home', 'Map'].map((item, i) => (
                   <span key={item} className={`text-xs font-medium ${i === 1 ? 'text-red-400' : 'text-gray-500'}`}>{item}</span>
                 ))}
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-white transition-colors group"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-red-500/30 transition-all">
+                    <User className="w-3 h-3 text-white" />
+                  </div>
+                  Profile
+                </button>
               </div>
             </div>
 
             {/* Desktop: side-by-side | Mobile: map full + bottom sheet */}
-            <div className="relative flex flex-col sm:flex-row h-[600px] sm:h-[500px]">
+            <div className="relative flex flex-col sm:flex-row h-[600px] sm:h-[650px]">
 
               {/* Desktop Sidebar — hidden on mobile */}
-              <div className="hidden sm:flex w-72 bg-dark-900/95 border-r border-white/5 overflow-y-auto z-10 flex-shrink-0 flex-col">
+              <div className="hidden sm:flex w-64 bg-dark-900/95 border-r border-white/5 overflow-y-auto z-10 flex-shrink-0 flex-col">
                 <div className="p-4">
                   <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 text-red-400" />
                     Nearby Hospitals
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4">
+                  <p className="text-xs text-gray-500 mb-3">
                     {loading ? 'Searching...' : error ? error : `${hospitals.length} hospitals found within 50km`}
                   </p>
+                  {/* Search bar */}
+                  <div className="relative mb-4">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search hospitals..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-lg bg-dark-700 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors"
+                    />
+                    {searchQuery && (
+                      <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                        <X className="w-3 h-3 text-gray-500 hover:text-white" />
+                      </button>
+                    )}
+                  </div>
                   <HospitalList />
                 </div>
               </div>
+
+              {/* Profile Modal */}
+              {showProfile && (
+                <div className="absolute inset-0 z-[3000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                  <div className="relative w-[300px] bg-dark-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+                    <button
+                      onClick={() => setShowProfile(false)}
+                      className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5 text-gray-400" />
+                    </button>
+
+                    {/* Banner with profile image background */}
+                    <div className="h-20 relative overflow-hidden">
+                      <img
+                        src="/profile.jpg"
+                        alt="banner"
+                        className="absolute inset-0 w-full h-full object-cover scale-110"
+                        style={{ filter: 'blur(6px) brightness(0.35)', objectPosition: 'center top' }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-dark-900/90" />
+                      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#dc2626 0,#dc2626 1px,transparent 0,transparent 50%)', backgroundSize: '8px 8px' }} />
+                    </div>
+
+                    <div className="px-5 pb-5">
+                      <div className="-mt-12 mb-3 flex items-end justify-between">
+                        {/* Video avatar — face cropped to center */}
+                        <div className="relative w-24 h-24 flex-shrink-0">
+                          {/* Animated ring */}
+                          <div className="absolute inset-0 rounded-full animate-spin" style={{ animationDuration: '3s', background: 'conic-gradient(from 0deg, #ef4444, #dc2626, transparent, transparent)' }} />
+                          <div className="absolute inset-[3px] rounded-full border-2 border-dark-900" />
+                          {/* Pulse glow */}
+                          <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                          {/* Profile image clipped to circle */}
+                          <div className="absolute inset-[3px] rounded-full overflow-hidden">
+                            <img
+                              src="/profile.jpg"
+                              alt="Rokkie"
+                              className="w-full h-full object-cover"
+                              style={{ objectPosition: 'center 20%' }}
+                            />
+                          </div>
+                        </div>
+                        <a
+                          href="https://github.com/Rokkie-or-Nath"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-[11px] font-semibold text-gray-300 hover:text-white transition-all"
+                        >
+                          <GitFork className="w-3 h-3" />
+                          GitHub
+                        </a>
+                      </div>
+
+                      <h3 className="text-base font-bold text-white">Rokkie</h3>
+                      <p className="text-xs text-red-400 font-medium mb-1">@Rokkie-or-Nath</p>
+                      <p className="text-xs text-gray-400 leading-relaxed mb-4">
+                        Developer & designer of CodeRed — an emergency hospital locator built with MapLibre GL, Geoapify, and React.
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {[
+                          { label: 'Project', value: 'CodeRed' },
+                          { label: 'Stack',   value: 'React' },
+                          { label: 'Role',    value: 'Full Dev' },
+                        ].map((s) => (
+                          <div key={s.label} className="text-center p-2 rounded-lg bg-white/5 border border-white/5">
+                            <div className="text-[11px] font-bold text-white">{s.value}</div>
+                            <div className="text-[9px] text-gray-500">{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {['MapLibre GL', 'Geoapify', 'ORS', 'TypeScript', 'Tailwind'].map((t) => (
+                          <span key={t} className="px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[10px] font-medium text-red-300">{t}</span>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <a
+                          href="https://github.com/Rokkie-or-Nath/CodeRed"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 transition-all group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Code2 className="w-3.5 h-3.5 text-red-400" />
+                            <span className="text-xs font-medium text-gray-300 group-hover:text-white">CodeRed Repository</span>
+                          </div>
+                          <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-red-400" />
+                        </a>
+                        <a
+                          href="https://github.com/Rokkie-or-Nath"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 transition-all group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-3.5 h-3.5 text-red-400" />
+                            <span className="text-xs font-medium text-gray-300 group-hover:text-white">GitHub Profile</span>
+                          </div>
+                          <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-red-400" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Map — full width on mobile */}
               <div className="relative flex-1">
                 <div ref={mapContainer} style={{ height: '100%', width: '100%' }} />
 
-                {!location && (
+                {(loading || (!location && error)) && (
                   <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm bg-dark-900/80">
                     {loading ? 'Getting your location...' : error}
                   </div>
@@ -382,22 +817,120 @@ export default function AppInterfaceSection() {
                   >
                     <Crosshair className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => setFullscreen(true)}
+                    className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                    title="Fullscreen"
+                  >
+                    <Maximize className="w-4 h-4" />
+                  </button>
+
+                  {/* Fullscreen Overlay */}
+                  {fullscreen && (
+                    <div className="fixed inset-0 z-[9999] bg-black flex">
+                      {/* Collapsible hospital panel */}
+                      <div className={`relative z-[10000] flex-shrink-0 bg-dark-900/95 border-r border-white/10 flex flex-col transition-all duration-300 overflow-hidden ${showFsPanel ? 'w-72' : 'w-0'}`}>
+                        <div className="p-4 flex flex-col h-full overflow-y-auto">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-bold flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-red-400" />
+                              Nearby Hospitals
+                              <span className="text-xs text-gray-500 font-normal">({hospitals.length})</span>
+                            </h3>
+                            <button onClick={() => setShowFsPanel(false)}>
+                              <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                            </button>
+                          </div>
+                          <div className="relative mb-3">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Search hospitals..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-2 rounded-lg bg-dark-700 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors"
+                            />
+                            {searchQuery && (
+                              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                <X className="w-3 h-3 text-gray-500 hover:text-white" />
+                              </button>
+                            )}
+                          </div>
+                          <HospitalList />
+                        </div>
+                      </div>
+
+                      {/* Map fills remaining space */}
+                      <div className="relative flex-1">
+                        <div ref={fullscreenMapContainer} style={{ width: '100%', height: '100%' }} />
+
+                        {/* Top-left: toggle panel button */}
+                        <div className="absolute top-4 left-4 z-[10000]">
+                          <button
+                            onClick={() => setShowFsPanel(!showFsPanel)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 text-xs font-semibold text-white hover:text-red-400 transition-colors"
+                            title={showFsPanel ? 'Hide hospitals' : 'Show hospitals'}
+                          >
+                            <MapPin className="w-3.5 h-3.5 text-red-400" />
+                            {showFsPanel ? 'Hide' : 'Hospitals'}
+                          </button>
+                        </div>
+
+                        {/* Top-right controls */}
+                        <div className="absolute top-4 right-4 z-[10000] flex flex-col gap-2">
+                          <button
+                            onClick={() => setShowSatellite(!showSatellite)}
+                            className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                            title="Toggle satellite"
+                          >
+                            <Layers className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => { if (fullscreenMap.current && location) fullscreenMap.current.flyTo({ center: [location.lon, location.lat], zoom: 14, pitch: 45, duration: 1000 }); }}
+                            className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                            title="Recenter"
+                          >
+                            <Crosshair className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setFullscreen(false)}
+                            className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                            title="Exit fullscreen"
+                          >
+                            <Minimize className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Emergency button */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[10000]">
+                          <button
+                            onClick={handleEmergency}
+                            disabled={!location || hospitals.length === 0}
+                            className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-full shadow-2xl shadow-red-600/40 text-sm font-bold transition-all emergency-pulse"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                            EMERGENCY
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile: Hospitals toggle button */}
                 <div className="absolute top-4 left-4 z-[1000] sm:hidden">
                   <button
-                    onClick={() => setSheetOpen(!sheetOpen)}
+                    onClick={() => setSheetOpen(v => !v)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 text-xs font-semibold text-white"
                   >
                     <MapPin className="w-3.5 h-3.5 text-red-400" />
-                    Hospitals
+                    {hospitals.length > 0 ? `Hospitals (${hospitals.length})` : 'Hospitals'}
                     {sheetOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
                   </button>
                 </div>
 
                 {/* Emergency Button */}
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+                <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] ${fullscreen ? 'hidden' : ''}`}>
                   <button
                     onClick={handleEmergency}
                     disabled={!location || hospitals.length === 0}
@@ -415,7 +948,6 @@ export default function AppInterfaceSection() {
                   }`}
                   style={{ maxHeight: '60%', overflowY: 'auto' }}
                 >
-                  {/* Sheet handle */}
                   <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 rounded-full bg-white/20" />
                   </div>
@@ -430,7 +962,85 @@ export default function AppInterfaceSection() {
                         <X className="w-4 h-4 text-gray-400" />
                       </button>
                     </div>
-                    <HospitalList />
+                    <div className="relative mb-3">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search hospitals..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 rounded-lg bg-dark-700 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors"
+                      />
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          <X className="w-3 h-3 text-gray-500 hover:text-white" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {loading && <p className="text-xs text-gray-500">Searching...</p>}
+                      {error && <p className="text-xs text-red-400">{error}</p>}
+                      {filteredHospitals.map((hospital) => {
+                        const realIndex = hospitals.indexOf(hospital);
+                        return (
+                          <div
+                            key={realIndex}
+                            ref={el => { hospitalItemRefs.current[realIndex] = el; }}
+                            onClick={() => setSelectedHospital(selectedHospital === realIndex ? null : realIndex)}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all duration-300 ${
+                              selectedHospital === realIndex
+                                ? 'bg-red-500/10 border-red-500/30'
+                                : 'bg-dark-800/50 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2 pr-2">
+                                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600/80 text-white text-[9px] font-bold flex items-center justify-center">
+                                  {realIndex + 1}
+                                </span>
+                                <h4 className="text-xs font-semibold leading-tight">{hospital.name}</h4>
+                              </div>
+                              {hospital.open !== null && <Star className="w-3 h-3 text-yellow-400 fill-current flex-shrink-0" />}
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                              <span className="flex items-center gap-1"><Navigation className="w-2.5 h-2.5" />{hospital.distance}</span>
+                              {hospital.open !== null && (
+                                <span className="flex items-center gap-1 text-green-400"><Clock className="w-2.5 h-2.5" />Open</span>
+                              )}
+                            </div>
+                            {selectedHospital === realIndex && (
+                              <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); location && navigateTo(hospital, realIndex, location); }}
+                                  disabled={routeLoading}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-[11px] font-semibold transition-colors"
+                                >
+                                  <Navigation className="w-3 h-3" />
+                                  {routeLoading && activeRoute === realIndex ? 'Routing...' : 'Navigate'}
+                                </button>
+                                {activeRoute === realIndex && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); clearRoute(); }}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-white/5 text-[11px] font-semibold transition-colors"
+                                  >
+                                    <X className="w-3 h-3" />Clear Route
+                                  </button>
+                                )}
+                                {hospital.phone !== 'N/A' && (
+                                  <a
+                                    href={`tel:${hospital.phone}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 border border-white/5 text-[11px] font-semibold transition-colors"
+                                  >
+                                    <Phone className="w-3 h-3" />{hospital.phone}
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

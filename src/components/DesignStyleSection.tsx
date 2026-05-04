@@ -1,46 +1,46 @@
 import { Palette, Type, Box, Sparkles, Monitor, Layers } from 'lucide-react';
 
 const colors = [
-  { name: 'Background', hex: '#0A0A0A', text: 'text-white' },
-  { name: 'Surface', hex: '#111111', text: 'text-white' },
-  { name: 'Card', hex: '#1A1A1A', text: 'text-white' },
-  { name: 'Border', hex: '#2A2A2A', text: 'text-white' },
-  { name: 'Emergency', hex: '#DC2626', text: 'text-white' },
-  { name: 'Hover', hex: '#EF4444', text: 'text-white' },
-  { name: 'Glow', hex: '#F87171', text: 'text-dark-900' },
-  { name: 'Text', hex: '#FFFFFF', text: 'text-dark-900' },
+  { name: 'Background', hex: '#0A0A0F', text: 'text-white' },
+  { name: 'Surface',    hex: '#111118', text: 'text-white' },
+  { name: 'Card',       hex: '#1A1A27', text: 'text-white' },
+  { name: 'Border',     hex: '#2A2A3A', text: 'text-white' },
+  { name: 'Emergency',  hex: '#DC2626', text: 'text-white' },
+  { name: 'Hover',      hex: '#EF4444', text: 'text-white' },
+  { name: 'Glow',       hex: '#F87171', text: 'text-dark-900' },
+  { name: 'Text',       hex: '#FFFFFF', text: 'text-dark-900' },
 ];
 
 const principles = [
   {
     icon: Box,
     title: 'Minimalist Layout',
-    description: 'Clean, distraction-free interface. Every element serves a purpose.',
+    description: 'Clean, distraction-free interface. Every element serves a purpose in an emergency.',
   },
   {
     icon: Type,
     title: 'Clear Typography',
-    description: 'Inter font family with bold headings and readable body text.',
+    description: 'Inter font family. Bold headings for quick scanning, readable body for details.',
   },
   {
     icon: Sparkles,
     title: 'Smooth Animations',
-    description: '300-500ms transitions with ease-in-out timing. Never jarring.',
+    description: '300–500ms transitions with ease-in-out. Map fly-to uses 1000–1500ms for orientation.',
   },
   {
     icon: Layers,
     title: 'Depth & Hierarchy',
-    description: 'Subtle shadows and borders create visual layers without clutter.',
+    description: 'MapLibre 3D pitch at 45° with fill-extrusion buildings creates real spatial depth.',
   },
   {
     icon: Monitor,
     title: 'Responsive First',
-    description: 'Mobile-first breakpoints: 640px, 768px, 1024px, 1280px.',
+    description: 'Desktop: sidebar + map. Mobile: full-screen map + bottom sheet panel.',
   },
   {
     icon: Palette,
     title: 'Consistent Palette',
-    description: 'Dark neutrals with red accents. Colors carry meaning throughout.',
+    description: 'Dark neutrals with red emergency accents. Red always signals urgency or action.',
   },
 ];
 
@@ -48,7 +48,6 @@ export default function DesignStyleSection() {
   return (
     <section id="design" className="relative py-24 sm:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-4">
             <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Design System</span>
@@ -57,7 +56,7 @@ export default function DesignStyleSection() {
             Design <span className="text-red-400">Style</span> Guide
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-            A modern, dark-themed UI with red emergency accents. Built for clarity and speed.
+            A modern dark UI with red emergency accents — built for clarity under pressure.
           </p>
         </div>
 
@@ -73,13 +72,8 @@ export default function DesignStyleSection() {
                 key={color.name}
                 className="rounded-xl overflow-hidden border border-white/5 hover:border-red-500/20 transition-all group"
               >
-                <div
-                  className="h-20 flex items-end p-3"
-                  style={{ backgroundColor: color.hex }}
-                >
-                  <span className={`text-xs font-bold ${color.text} drop-shadow-lg`}>
-                    {color.hex}
-                  </span>
+                <div className="h-20 flex items-end p-3" style={{ backgroundColor: color.hex }}>
+                  <span className={`text-xs font-bold ${color.text} drop-shadow-lg`}>{color.hex}</span>
                 </div>
                 <div className="px-3 py-2 bg-dark-800">
                   <span className="text-xs font-medium text-gray-400">{color.name}</span>
@@ -97,18 +91,16 @@ export default function DesignStyleSection() {
           </h3>
           <div className="space-y-4 p-6 rounded-2xl bg-dark-800 border border-white/5">
             {[
-              { label: 'Display', size: 'text-5xl sm:text-6xl', weight: 'font-black', example: 'Emergency' },
-              { label: 'Heading', size: 'text-3xl', weight: 'font-bold', example: 'Find Hospitals' },
-              { label: 'Subheading', size: 'text-xl', weight: 'font-semibold', example: 'Nearby Results' },
-              { label: 'Body', size: 'text-base', weight: 'font-normal', example: 'Hospital details and info text' },
-              { label: 'Caption', size: 'text-sm', weight: 'font-normal', example: 'Last updated 2 min ago' },
-              { label: 'Code', size: 'text-xs', weight: 'font-mono', example: 'const map = new mapboxgl.Map()' },
+              { label: 'Display',    size: 'text-5xl sm:text-6xl', weight: 'font-black',    example: 'CodeRed' },
+              { label: 'Heading',    size: 'text-3xl',             weight: 'font-bold',     example: 'Find Hospitals' },
+              { label: 'Subheading', size: 'text-xl',              weight: 'font-semibold', example: 'Nearby Results' },
+              { label: 'Body',       size: 'text-base',            weight: 'font-normal',   example: 'Hospital details and distance info' },
+              { label: 'Caption',    size: 'text-sm',              weight: 'font-normal',   example: '1.2 km away · Open now' },
+              { label: 'Code',       size: 'text-xs',              weight: 'font-mono',     example: 'new maplibregl.Map({ pitch: 45 })' },
             ].map((item) => (
               <div key={item.label} className="flex items-baseline gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                <span className="text-xs text-gray-500 w-20 flex-shrink-0">{item.label}</span>
-                <span className={`${item.size} ${item.weight} text-white truncate`}>
-                  {item.example}
-                </span>
+                <span className="text-xs text-gray-500 w-24 flex-shrink-0">{item.label}</span>
+                <span className={`${item.size} ${item.weight} text-white truncate`}>{item.example}</span>
               </div>
             ))}
           </div>
@@ -132,9 +124,7 @@ export default function DesignStyleSection() {
                 <h4 className="text-sm font-bold mb-1 group-hover:text-red-300 transition-colors">
                   {principle.title}
                 </h4>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  {principle.description}
-                </p>
+                <p className="text-xs text-gray-500 leading-relaxed">{principle.description}</p>
               </div>
             ))}
           </div>
@@ -151,10 +141,10 @@ export default function DesignStyleSection() {
               <h4 className="text-sm font-bold mb-4 text-gray-300">Border Radius</h4>
               <div className="flex items-end gap-4">
                 {[
-                  { label: 'sm', value: '6px', radius: 'rounded' },
-                  { label: 'md', value: '8px', radius: 'rounded-lg' },
-                  { label: 'lg', value: '12px', radius: 'rounded-xl' },
-                  { label: 'xl', value: '16px', radius: 'rounded-2xl' },
+                  { label: 'sm',   value: '6px',    radius: 'rounded' },
+                  { label: 'md',   value: '8px',    radius: 'rounded-lg' },
+                  { label: 'lg',   value: '12px',   radius: 'rounded-xl' },
+                  { label: 'xl',   value: '16px',   radius: 'rounded-2xl' },
                   { label: 'full', value: '9999px', radius: 'rounded-full' },
                 ].map((r) => (
                   <div key={r.label} className="text-center">
@@ -165,12 +155,12 @@ export default function DesignStyleSection() {
               </div>
             </div>
             <div className="p-6 rounded-2xl bg-dark-800 border border-white/5">
-              <h4 className="text-sm font-bold mb-4 text-gray-300">Shadows</h4>
+              <h4 className="text-sm font-bold mb-4 text-gray-300">Shadows & Glow</h4>
               <div className="flex items-center gap-6">
                 {[
                   { label: 'Subtle', shadow: 'shadow-lg shadow-black/20' },
                   { label: 'Medium', shadow: 'shadow-xl shadow-black/30' },
-                  { label: 'Glow', shadow: 'shadow-2xl shadow-red-500/20' },
+                  { label: 'Red Glow', shadow: 'shadow-2xl shadow-red-500/30' },
                 ].map((s) => (
                   <div key={s.label} className="text-center">
                     <div className={`w-16 h-16 rounded-xl bg-dark-700 ${s.shadow} mb-2`} />

@@ -1,4 +1,4 @@
-import { MapPin, Heart, Globe, ExternalLink } from 'lucide-react';
+import { MapPin, Heart, GitFork, ExternalLink } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -16,7 +16,8 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-gray-500 leading-relaxed">
-              An open-source concept for a web application that helps users find nearby hospitals during emergencies.
+              An open-source emergency hospital locator. Real-time geolocation, interactive 3D maps,
+              and turn-by-turn routing — built for when every second counts.
             </p>
           </div>
 
@@ -24,13 +25,21 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-bold mb-4 text-gray-300">Sections</h4>
             <div className="grid grid-cols-2 gap-2">
-              {['Features', 'Interface', 'User Flow', 'Code', 'API Guide', 'Extras', 'Design'].map((link) => (
+              {[
+                { label: 'Features',  href: '#features' },
+                { label: 'Interface', href: '#interface' },
+                { label: 'User Flow', href: '#userflow' },
+                { label: 'Code',      href: '#code' },
+                { label: 'API Guide', href: '#api' },
+                { label: 'Extras',    href: '#extras' },
+                { label: 'Design',    href: '#design' },
+              ].map((link) => (
                 <a
-                  key={link}
-                  href={`#${link.toLowerCase().replace(' ', '')}`}
+                  key={link.label}
+                  href={link.href}
                   className="text-sm text-gray-500 hover:text-red-400 transition-colors"
                 >
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </div>
@@ -40,7 +49,10 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-bold mb-4 text-gray-300">Tech Stack</h4>
             <div className="flex flex-wrap gap-2">
-              {['Mapbox GL', 'Geolocation API', 'Overpass API', 'React', 'Tailwind CSS', 'TypeScript'].map((tech) => (
+              {[
+                'React', 'TypeScript', 'Vite', 'Tailwind CSS',
+                'MapLibre GL', 'Geoapify', 'OpenRouteService', 'Overpass API',
+              ].map((tech) => (
                 <span
                   key={tech}
                   className="px-2.5 py-1 rounded-lg bg-dark-800 border border-white/5 text-xs font-medium text-gray-400"
@@ -54,14 +66,33 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="mt-12 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-600 flex items-center gap-1">
-            Built with <Heart className="w-3 h-3 text-red-500 fill-red-500" /> for emergencies
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-3 text-xs text-gray-600">
+            <p className="flex items-center gap-1">
+              Built with <Heart className="w-3 h-3 text-red-500 fill-red-500 mx-0.5" /> for emergencies
+            </p>
+            <span className="hidden sm:inline text-gray-700">·</span>
+            <p>
+              Designed & developed by{' '}
+              <span className="text-red-400 font-semibold">Rokkie</span>
+            </p>
+          </div>
           <div className="flex items-center gap-4">
-            <a href="#" className="text-gray-500 hover:text-red-400 transition-colors">
-              <Globe className="w-4 h-4" />
+            <a
+              href="https://github.com/Rokkie-or-Nath/CodeRed"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 hover:text-red-400 transition-colors"
+              title="GitHub"
+            >
+              <GitFork className="w-4 h-4" />
             </a>
-            <a href="#" className="text-gray-500 hover:text-red-400 transition-colors">
+            <a
+              href="https://github.com/Rokkie-or-Nath/CodeRed"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 hover:text-red-400 transition-colors"
+              title="View Project"
+            >
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>
