@@ -3,8 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapPin, Phone, Star, Clock, Navigation, AlertTriangle, Layers, Crosshair, X, ChevronUp, ChevronDown } from 'lucide-react';
 
-const GEOAPIFY_KEY = '1769eb6c5ae547278c3438ceff0d4636';
-const ORS_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjUxNmM1ZWZmYzZlYzQwYTE4OTQxNDVmZDgwYjc4ZjgyIiwiaCI6Im11cm11cjY0In0=';
+const GEOAPIFY_KEY = import.meta.env.VITE_GEOAPIFY_KEY;
+const ORS_KEY = import.meta.env.VITE_ORS_KEY;
 
 interface Hospital {
   name: string;
