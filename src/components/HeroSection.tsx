@@ -7,6 +7,13 @@ export default function HeroSection() {
   const handleEmergency = () => {
     setEmergencyActive(true);
     setTimeout(() => setEmergencyActive(false), 3000);
+    const section = document.getElementById('interface');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        if ((window as any).__pulsePointEmergency) (window as any).__pulsePointEmergency();
+      }, 800);
+    }
   };
 
   return (
