@@ -22,7 +22,15 @@ The app uses real-time geolocation and an interactive map to display nearby hosp
 - HTML
 - CSS
 - TypeScript
-- Mapbox API / Google Maps API
+
+---
+
+## 🛠️ API Used
+
+- MapLibre GL
+- Geoapify
+- OpenRouteService
+- Overpass API
 
 ---
 
