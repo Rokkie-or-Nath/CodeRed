@@ -21,7 +21,7 @@ The app uses real-time geolocation and an interactive map to display nearby hosp
 
 - HTML
 - CSS
-- JavaScript
+- TypeScript
 - Mapbox API / Google Maps API
 
 ---
