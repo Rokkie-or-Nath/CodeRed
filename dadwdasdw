@@ -1,0 +1,14 @@
+[33m8d42f79[m fix: use node entry for vite build to avoid permission error
+[1mdiff --git a/package.json b/package.json[m
+[1mindex 5bcd4cc..d19ceb3 100644[m
+[1m--- a/package.json[m
+[1m+++ b/package.json[m
+[36m@@ -8,7 +8,7 @@[m
+   "type": "module",[m
+   "scripts": {[m
+     "dev": "vite",[m
+[31m-    "build": "vite build",[m
+[32m+[m[32m    "build": "node ./node_modules/vite/bin/vite.js build",[m
+     "preview": "vite preview"[m
+   },[m
+   "dependencies": {[m

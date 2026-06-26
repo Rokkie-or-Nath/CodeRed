@@ -94,6 +94,11 @@ export default function AppInterfaceSection() {
     clearRoute();
 
     try {
+      // Check if ORS_KEY is set before making the request
+      if (!ORS_KEY || ORS_KEY === 'your_ors_key_here') {
+        throw new Error('ORS_KEY not configured. Set VITE_ORS_KEY in your .env file. Get a free key at https://openrouteservice.org/dev/#/signup');
+      }
+
       const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
         method: 'POST',
         headers: { 'Authorization': ORS_KEY, 'Content-Type': 'application/json' },
@@ -104,7 +109,15 @@ export default function AppInterfaceSection() {
         }),
       });
 
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Route API error (${res.status}): ${errText}`);
+      }
+
       const data = await res.json();
+      if (!data.features?.[0]?.geometry?.coordinates) {
+        throw new Error('No route found between locations.');
+      }
       const allCoords: [number, number][] = data.features[0].geometry.coordinates;
 
       activeRouteCoords.current = allCoords;
@@ -119,8 +132,9 @@ export default function AppInterfaceSection() {
       if (fullscreenMap.current) fullscreenMap.current.fitBounds(bounds, { padding: 60, duration: 1200 });
       setActiveRoute(index);
       setTimeout(() => animateRoute(allCoords), 1300);
-    } catch {
-      setError('Failed to fetch route. Try again.');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      setError(`Failed to fetch route: ${message}`);
     } finally {
       setRouteLoading(false);
     }
@@ -417,7 +431,7 @@ export default function AppInterfaceSection() {
 
     if (!roadSource) return;
 
-    const roadFilter = ['in', ['get', 'class'], ['literal', ['primary', 'secondary', 'tertiary', 'trunk', 'motorway']]];
+    const roadFilter = ['in', ['get', 'class'], ['literal', ['primary', 'secondary', 'tertiary', 'trunk', 'motorway']]] as maplibregl.FilterSpecification;
 
     // Outer amber glow — heavy traffic feel
     mapInstance.addLayer({
