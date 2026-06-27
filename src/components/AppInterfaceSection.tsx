@@ -50,6 +50,11 @@ export default function AppInterfaceSection() {
 
   const activeRouteCoords = useRef<[number, number][] | null>(null);
 
+  // Follow the Trail state
+  const [followTrail, setFollowTrail] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
+  const lastHeadingRef = useRef<number>(0);
+
   const removeRouteLayers = (m: maplibregl.Map) => {
     ['route-dash', 'route', 'route-glow'].forEach(id => { if (m.getLayer(id)) m.removeLayer(id); });
     if (m.getSource('route')) m.removeSource('route');
@@ -317,6 +322,77 @@ export default function AppInterfaceSection() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
+
+  // Follow the Trail — watch user's position and rotate map to heading
+  useEffect(() => {
+    if (!followTrail) {
+      // Cleanup watcher when toggled off
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+        // Reset bearing to a smooth stop
+        map.current?.easeTo({ bearing: lastHeadingRef.current, duration: 300 });
+      }
+      return;
+    }
+
+    // Start watching position with high accuracy
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lon, heading } = pos.coords;
+        setLocation({ lat, lon });
+
+        // Update user marker position
+        if (userMarker.current) {
+          userMarker.current.setLngLat([lon, lat]);
+        }
+
+        // Use device heading if available (compass bearing), otherwise compute from previous position
+        const bearing = heading !== null && heading !== undefined
+          ? heading
+          : lastHeadingRef.current;
+
+        lastHeadingRef.current = bearing;
+
+        // Center the map on user with smooth easing, rotate to heading direction
+        if (map.current) {
+          map.current.easeTo({
+            center: [lon, lat],
+            bearing: bearing,
+            pitch: 55,           // Slightly steeper pitch for immersion
+            zoom: 16,
+            duration: 1200,      // Smooth transition over 1.2 seconds
+          });
+        }
+
+        // Also update fullscreen map if open
+        if (fullscreenMap.current) {
+          fullscreenMap.current.easeTo({
+            center: [lon, lat],
+            bearing: bearing,
+            pitch: 55,
+            zoom: 16,
+            duration: 1200,
+          });
+        }
+      },
+      (err) => {
+        console.warn('Trail watch error:', err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 1000,        // Accept positions up to 1 second old for smooth tracking
+      }
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [followTrail]);
 
   const hospitalBuildingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -860,6 +936,17 @@ export default function AppInterfaceSection() {
 
                 {/* Map Controls */}
                 <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                  <button
+                    onClick={() => setFollowTrail(v => !v)}
+                    className={`w-10 h-10 rounded-lg backdrop-blur border flex items-center justify-center transition-colors ${
+                      followTrail
+                        ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-600/40'
+                        : 'bg-dark-700/90 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                    title={followTrail ? 'Stop following trail' : 'Follow the trail'}
+                  >
+                    <Navigation className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => setShowSatellite(!showSatellite)}
                     className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"

@@ -99,6 +99,26 @@ export default function UserFlowSection() {
             ))}
           </div>
         </div>
+
+        {/* Follow the Trail Button */}
+        <div className="text-center mt-12">
+          <a
+            href="#interface"
+            className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 border border-red-400/20 hover:border-red-400/40 shadow-xl shadow-red-600/20 hover:shadow-red-600/40 text-white font-bold text-base transition-all duration-500 hover:scale-105 group"
+          >
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+            </span>
+            Follow the Trail to the Map
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </a>
+          <p className="text-gray-500 text-sm mt-4">
+            See the live map with nearby hospitals in action
+          </p>
+        </div>
       </div>
     </section>
   );

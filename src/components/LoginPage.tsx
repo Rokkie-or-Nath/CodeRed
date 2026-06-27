@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Eye, EyeOff, AlertTriangle, LogIn, UserPlus } from 'lucide-react';
+import { MapPin, Eye, EyeOff, AlertTriangle, LogIn, UserPlus, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function LoginPage({ onLogin }: { onLogin: () => void }) {
@@ -56,7 +56,6 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
           }
           throw signInError;
         }
-        // AuthContext will pick up the session change automatically
         onLogin();
       }
     } catch (err: unknown) {
@@ -76,23 +75,85 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="min-h-screen bg-dark-900 text-white flex">
-      {/* Main content */}
-      <main className="flex-1 relative flex items-center justify-center p-6 overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 map-grid opacity-50" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
-
+      {/* Left decorative panel - hidden on mobile */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden bg-dark-800">
+        {/* Map grid pattern */}
+        <div className="absolute inset-0 map-grid opacity-30" />
+        
+        {/* Background glow */}
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-red-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-red-600/5 rounded-full blur-3xl" />
+        
         {/* Floating particles */}
-        <div className="absolute top-20 left-10 w-2 h-2 bg-red-500/30 rounded-full animate-float" style={{ animationDelay: '0s' }} />
-        <div className="absolute top-40 right-20 w-1.5 h-1.5 bg-red-400/20 rounded-full animate-float" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-40 left-1/3 w-1 h-1 bg-red-500/40 rounded-full animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-20 left-16 w-2 h-2 bg-red-500/30 rounded-full animate-float" style={{ animationDelay: '0s' }} />
+        <div className="absolute top-1/3 right-20 w-1.5 h-1.5 bg-red-400/20 rounded-full animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/3 left-1/4 w-1 h-1 bg-red-500/40 rounded-full animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 right-1/3 w-2.5 h-2.5 bg-red-600/20 rounded-full animate-float" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute bottom-20 right-16 w-1.5 h-1.5 bg-red-400/30 rounded-full animate-float" style={{ animationDelay: '1.5s' }} />
 
-        <div className="relative z-10 w-full max-w-md animate-fade-in-up">
-          {/* Header */}
-          <div className="text-center mb-8">
-            {/* Mobile logo */}
-            <div className="lg:hidden flex items-center justify-center gap-2.5 mb-6">
+        <div className="relative z-10 text-center px-12">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-xl shadow-red-900/40">
+                <MapPin className="w-8 h-8 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-dark-800 animate-pulse" />
+            </div>
+          </div>
+          
+          <h1 className="text-5xl font-black tracking-tight mb-4">
+            Code<span className="text-red-500">Red</span>
+          </h1>
+          
+          <p className="text-xl text-gray-400 max-w-md mx-auto leading-relaxed">
+            Emergency locator system that finds nearby hospitals instantly when you need help most.
+          </p>
+
+          {/* Divider with glow */}
+          <div className="w-20 h-1 bg-gradient-to-r from-red-500 to-red-600 rounded-full mx-auto my-8" />
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-6 max-w-sm mx-auto">
+            {[
+              { value: '< 2s', label: 'Detection' },
+              { value: '500m', label: 'Accuracy' },
+              { value: '24/7', label: 'Active' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-2xl font-bold text-red-400">{stat.value}</div>
+                <div className="text-xs text-gray-600 mt-1">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Status badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 mt-10">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
+            <span className="text-sm font-medium text-red-300">Emergency Services Active</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - Login form */}
+      <main className="flex-1 relative flex items-center justify-center p-6 overflow-hidden">
+        {/* Background effects for mobile */}
+        <div className="absolute inset-0 map-grid opacity-30 lg:opacity-0" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none lg:hidden" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none lg:hidden" />
+
+        {/* Floating particles (mobile only) */}
+        <div className="absolute top-20 left-10 w-2 h-2 bg-red-500/30 rounded-full animate-float lg:hidden" style={{ animationDelay: '0s' }} />
+        <div className="absolute top-40 right-20 w-1.5 h-1.5 bg-red-400/20 rounded-full animate-float lg:hidden" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-40 left-1/3 w-1 h-1 bg-red-500/40 rounded-full animate-float lg:hidden" style={{ animationDelay: '2s' }} />
+
+        <div className="relative z-10 w-full max-w-md">
+          {/* Mobile logo (visible on small screens) */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="flex items-center justify-center gap-2.5 mb-4">
               <div className="relative">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
                   <MapPin className="w-5 h-5 text-white" />
@@ -103,16 +164,19 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
                 Code<span className="text-red-500">Red</span>
               </span>
             </div>
+          </div>
 
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 mb-4">
-              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-xs font-semibold text-red-400 uppercase tracking-wide">Emergency Locator</span>
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-4">
+              <Shield className="w-3 h-3 text-red-400" />
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Emergency Locator</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight gradient-text mb-2">
               {mode === 'login' ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-gray-500 text-sm">
-              {mode === 'login' ? 'Sign in to access PulsePoint' : 'Join the PulsePoint network'}
+              {mode === 'login' ? 'Sign in to access the emergency network' : 'Join the PulsePoint emergency network'}
             </p>
           </div>
 
@@ -229,10 +293,13 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             </form>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-white/5" />
-              <span className="text-xs text-gray-600">or</span>
-              <div className="flex-1 h-px bg-white/5" />
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/5" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-4 bg-dark-800 text-gray-600">or</span>
+              </div>
             </div>
 
             {/* Toggle login / signup */}
