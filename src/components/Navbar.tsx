@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, MapPin, Shield, Home, Zap, GitBranch, BookOpen, Sparkles, Palette, LogOut } from 'lucide-react';
+import { Menu, X, MapPin, Shield, Home, Zap, GitBranch, BookOpen, Sparkles, Palette } from 'lucide-react';
 
 const navItems = [
   { icon: Home, label: 'Home', href: '#hero' },
@@ -13,10 +13,8 @@ const navItems = [
 
 export default function Navbar({
   activeSection,
-  onLogout,
 }: {
   activeSection: string;
-  onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -74,7 +72,7 @@ export default function Navbar({
           })}
         </nav>
 
-        {/* Bottom: 24/7 badge + Logout */}
+        {/* Bottom: 24/7 badge */}
         <div className="p-4 border-t border-white/5 space-y-3 relative z-10">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
             <Shield className="w-3.5 h-3.5 text-red-400" />
@@ -84,13 +82,6 @@ export default function Navbar({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
             </span>
           </div>
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 group"
-          >
-            <LogOut className="w-4 h-4 text-gray-500 group-hover:text-red-400 transition-colors" />
-            Logout
-          </button>
         </div>
       </aside>
 
@@ -140,13 +131,6 @@ export default function Navbar({
                 <Shield className="w-3.5 h-3.5 text-red-400" />
                 <span className="text-xs font-semibold text-red-400">24/7 ACTIVE</span>
               </div>
-              <button
-                onClick={() => { setMobileOpen(false); onLogout(); }}
-                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
             </div>
           </div>
         </div>
