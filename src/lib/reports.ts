@@ -37,6 +37,8 @@ export function getReportLabel(type: ReportType) {
  * Fetch all reports for a specific hospital (by coordinates).
  */
 export async function fetchHospitalReports(lon: number, lat: number): Promise<HospitalReport[]> {
+  if (!supabase) throw new Error('Reports are disabled: Supabase is not configured on this deployment.');
+
   const { data, error } = await supabase
     .from('hospital_reports')
     .select('*')
@@ -52,6 +54,8 @@ export async function fetchHospitalReports(lon: number, lat: number): Promise<Ho
  * Submit a new report about a hospital.
  */
 export async function submitReport(input: SubmitReportInput): Promise<HospitalReport> {
+  if (!supabase) throw new Error('Reports are disabled: Supabase is not configured on this deployment.');
+
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) throw new Error('Not authenticated');
 
@@ -76,6 +80,8 @@ export async function submitReport(input: SubmitReportInput): Promise<HospitalRe
  * Delete a report (only the user who created it can delete).
  */
 export async function deleteReport(reportId: string): Promise<void> {
+  if (!supabase) throw new Error('Reports are disabled: Supabase is not configured on this deployment.');
+
   const { error } = await supabase
     .from('hospital_reports')
     .delete()

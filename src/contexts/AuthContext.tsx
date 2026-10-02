@@ -14,6 +14,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Supabase may be null when the VITE_ env vars are missing at build time
+    // (see lib/supabase.ts). Skip auth in that case so the site still renders.
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
