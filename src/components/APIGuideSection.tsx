@@ -104,7 +104,7 @@ export default function APIGuideSection() {
                   </div>
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-xs font-bold text-red-500">STEP {step.step}</span>
                     {index < apiSteps.length - 1 && <ArrowRight className="w-3 h-3 text-gray-600" />}

@@ -20,14 +20,26 @@ export default function Navbar({
 
   return (
     <>
-      {/* Mobile hamburger — visible when sidebar is hidden on small screens */}
-      <button
-        className="fixed top-4 left-4 z-[60] lg:hidden p-2.5 rounded-xl bg-dark-800 border border-white/10 text-gray-400 hover:text-white transition-colors"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label="Toggle navigation"
-      >
-        {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
+      {/* Mobile app bar keeps navigation visible without covering the content. */}
+      <header className="fixed inset-x-0 top-0 z-[60] flex items-center justify-between border-b border-white/10 bg-dark-900/85 px-4 py-3 backdrop-blur-xl lg:hidden" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+        <a href="#hero" className="flex items-center gap-2" aria-label="CodeRed home">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
+            <MapPin className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-base font-bold tracking-tight">Code<span className="text-red-500">Red</span></span>
+        </a>
+        <div className="flex items-center gap-3">
+          <span className="hidden min-[380px]:inline text-[10px] font-semibold tracking-wider text-red-300">24/7 ACTIVE</span>
+          <button
+            className="p-2.5 -mr-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white transition-colors"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle navigation"
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-dark-800 border-r border-white/5 z-50 overflow-hidden">
@@ -91,7 +103,7 @@ export default function Navbar({
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           {/* Panel */}
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-dark-800 border-r border-white/10 shadow-2xl overflow-y-auto">
+          <div className="absolute left-0 top-0 bottom-0 w-[min(19rem,86vw)] bg-dark-800 border-r border-white/10 shadow-2xl overflow-y-auto" role="dialog" aria-modal="true" aria-label="Site navigation">
             <div className="p-5 border-b border-white/5">
               <div className="flex items-center gap-2.5">
                 <div className="relative">

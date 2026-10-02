@@ -556,14 +556,15 @@ export default function AppInterfaceSection() {
     });
   }, [showSatellite, hospitals, addHospitalBuildingGlow, addTrafficLayer]);
 
-  const handleEmergency = useCallback(() => {
-    if (!location || hospitals.length === 0) return;
+  const handleEmergency = useCallback((): boolean => {
+    if (!location || hospitals.length === 0) return false;
     const nearest = hospitals.reduce((a, b) => a.distanceRaw < b.distanceRaw ? a : b);
     const nearestIndex = hospitals.indexOf(nearest);
     setSelectedHospital(nearestIndex);
     setSheetOpen(true);
     map.current?.flyTo({ center: [nearest.lon, nearest.lat], zoom: 15, pitch: 60, duration: 1200 });
     navigateTo(nearest, nearestIndex, location);
+    return true;
   }, [location, hospitals, navigateTo]);
 
   useEffect(() => {
@@ -726,17 +727,17 @@ export default function AppInterfaceSection() {
   );
 
   return (
-    <section id="interface" className="relative py-24 sm:py-32">
+    <section id="interface" className="relative py-20 sm:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 sm:mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 mb-4">
             <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">App Interface</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-bold mb-4">
+          <h2 className="text-3xl sm:text-5xl font-bold mb-3 sm:mb-4">
             Intuitive <span className="text-red-400">Design</span> Layout
           </h2>
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+          <p className="text-gray-400 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
             A clean, focused interface designed for high-stress situations where clarity matters most.
           </p>
         </div>
@@ -744,7 +745,7 @@ export default function AppInterfaceSection() {
         {/* App Mockup */}
         <div className="relative max-w-7xl mx-auto">
           {/* Browser chrome */}
-          <div className="bg-dark-700 rounded-t-2xl border border-white/10 border-b-0 px-4 py-3 flex items-center gap-3">
+          <div className="hidden sm:flex bg-dark-700 rounded-t-2xl border border-white/10 border-b-0 px-4 py-3 items-center gap-3">
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500" />
               <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -759,16 +760,16 @@ export default function AppInterfaceSection() {
           </div>
 
           {/* App Content */}
-          <div className="bg-dark-800 rounded-b-2xl border border-white/10 border-t-0 overflow-hidden">
+          <div className="bg-dark-800 rounded-2xl sm:rounded-b-2xl border border-white/10 sm:border-t-0 overflow-hidden shadow-2xl shadow-black/20">
             {/* Top Nav */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-dark-900/50 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-semibold">Code<span className="text-red-400">Red</span></span>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
                 {['Home', 'Map'].map((item, i) => (
-                  <span key={item} className={`text-xs font-medium ${i === 1 ? 'text-red-400' : 'text-gray-500'}`}>{item}</span>
+                  <span key={item} className={`hidden sm:inline text-xs font-medium ${i === 1 ? 'text-red-400' : 'text-gray-500'}`}>{item}</span>
                 ))}
                 <button
                   onClick={() => setShowProfile(true)}
@@ -777,13 +778,13 @@ export default function AppInterfaceSection() {
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-red-500/30 transition-all">
                     <User className="w-3 h-3 text-white" />
                   </div>
-                  Profile
+                  <span className="hidden sm:inline">Profile</span>
                 </button>
               </div>
             </div>
 
             {/* Desktop: side-by-side | Mobile: map full + bottom sheet */}
-            <div className="relative flex flex-col sm:flex-row h-[600px] sm:h-[650px]">
+            <div className="relative flex flex-col sm:flex-row h-[70svh] min-h-[32rem] max-h-[42rem] sm:h-[650px] sm:max-h-none">
 
               {/* Desktop Sidebar — hidden on mobile */}
               <div className="hidden sm:flex w-64 bg-dark-900/95 border-r border-white/5 overflow-y-auto z-10 flex-shrink-0 flex-col">
@@ -935,10 +936,10 @@ export default function AppInterfaceSection() {
                 )}
 
                 {/* Map Controls */}
-                <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[1000] flex flex-col gap-2">
                   <button
                     onClick={() => setFollowTrail(v => !v)}
-                    className={`w-10 h-10 rounded-lg backdrop-blur border flex items-center justify-center transition-colors ${
+                    className={`w-11 h-11 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg backdrop-blur border flex items-center justify-center transition-colors ${
                       followTrail
                         ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-600/40'
                         : 'bg-dark-700/90 border-white/10 text-gray-400 hover:text-white'
@@ -949,21 +950,21 @@ export default function AppInterfaceSection() {
                   </button>
                   <button
                     onClick={() => setShowSatellite(!showSatellite)}
-                    className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                     title="Toggle satellite"
                   >
                     <Layers className="w-4 h-4" />
                   </button>
                   <button
                     onClick={recenter}
-                    className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                     title="Recenter"
                   >
                     <Crosshair className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setFullscreen(true)}
-                    className="w-10 h-10 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                     title="Fullscreen"
                   >
                     <Maximize className="w-4 h-4" />
@@ -1062,10 +1063,10 @@ export default function AppInterfaceSection() {
                 </div>
 
                 {/* Mobile: Hospitals toggle button */}
-                <div className="absolute top-4 left-4 z-[1000] sm:hidden">
+                <div className="absolute top-3 left-3 z-[1000] sm:hidden">
                   <button
                     onClick={() => setSheetOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-dark-700/90 backdrop-blur border border-white/10 text-xs font-semibold text-white"
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-dark-700/90 backdrop-blur border border-white/10 text-xs font-semibold text-white shadow-lg shadow-black/20"
                   >
                     <MapPin className="w-3.5 h-3.5 text-red-400" />
                     {hospitals.length > 0 ? `Hospitals (${hospitals.length})` : 'Hospitals'}
@@ -1074,11 +1075,11 @@ export default function AppInterfaceSection() {
                 </div>
 
                 {/* Emergency Button */}
-                <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] ${fullscreen ? 'hidden' : ''}`}>
+                <div className={`absolute left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ${sheetOpen ? 'bottom-[65%]' : 'bottom-5'} ${fullscreen ? 'hidden' : ''}`}>
                   <button
                     onClick={handleEmergency}
                     disabled={!location || hospitals.length === 0}
-                    className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-full shadow-2xl shadow-red-600/40 text-sm font-bold transition-all emergency-pulse"
+                    className="flex items-center gap-2 whitespace-nowrap px-6 py-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-full shadow-2xl shadow-red-600/40 text-sm font-bold transition-all emergency-pulse"
                   >
                     <AlertTriangle className="w-4 h-4" />
                     EMERGENCY
@@ -1090,12 +1091,12 @@ export default function AppInterfaceSection() {
                   className={`absolute bottom-0 left-0 right-0 z-[2000] sm:hidden bg-dark-900/98 backdrop-blur-xl border-t border-white/10 rounded-t-2xl transition-transform duration-300 ${
                     sheetOpen ? 'translate-y-0' : 'translate-y-full'
                   }`}
-                  style={{ maxHeight: '60%', overflowY: 'auto' }}
+                  style={{ maxHeight: '72%', overflowY: 'auto' }}
                 >
-                  <div className="flex justify-center pt-3 pb-1">
+                  <div className="sticky top-0 z-10 flex justify-center pt-3 pb-2 bg-dark-900/98">
                     <div className="w-10 h-1 rounded-full bg-white/20" />
                   </div>
-                  <div className="px-4 pb-4">
+                  <div className="px-4 safe-bottom">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-bold flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-red-400" />

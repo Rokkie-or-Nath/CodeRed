@@ -372,13 +372,13 @@ export default function CodeSection() {
 
         <div className="max-w-4xl mx-auto">
           <div className="code-block">
-            <div className="flex items-center justify-between border-b border-white/5 px-4">
-              <div className="flex gap-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-white/5 px-3 sm:px-4 py-2 sm:py-0 gap-1.5 sm:gap-0">
+              <div className="flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {codeSnippets.map((snippet) => (
                   <button
                     key={snippet.id}
                     onClick={() => setActiveTab(snippet.id)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                    className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
                       activeTab === snippet.id
                         ? 'border-red-500 text-red-400'
                         : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -391,7 +391,7 @@ export default function CodeSection() {
               </div>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                className="self-end sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all"
               >
                 {copied ? (
                   <><Check className="w-3.5 h-3.5 text-green-400" /><span className="text-green-400">Copied!</span></>

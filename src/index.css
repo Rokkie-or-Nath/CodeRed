@@ -14,12 +14,23 @@
 
 html {
   scroll-behavior: smooth;
+  background: #0a0a0a;
 }
 
 body {
   background-color: #0a0a0a;
   color: #ffffff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+button, a, input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid #f87171;
+  outline-offset: 3px;
 }
 
 /* Scrollbar */
@@ -156,4 +167,28 @@ body {
 
 .cursor-blink {
   animation: blink 1s infinite;
+}
+
+@media (max-width: 639px) {
+  section {
+    scroll-margin-top: 5.5rem;
+  }
+
+  .code-block pre {
+    padding: 1rem;
+    font-size: 0.72rem;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
